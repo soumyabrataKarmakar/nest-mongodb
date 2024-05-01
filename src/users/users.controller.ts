@@ -14,6 +14,7 @@ import { FileInterceptor, File } from '@nest-lab/fastify-multer';
 export class UsersController {
   constructor(private userService: UsersService, private jwtService: JwtService, private readonly awsS3Service: AwsS3Service) { }
 
+  // Create new user
   @ApiOperation({ summary: 'Create user' })
   @Post('create-user')
   async createUser(@Body() createUserDto: CreateUserDto, @Req() request: FastifyRequest, @Res() reply: FastifyReply) {
