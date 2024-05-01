@@ -5,6 +5,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { UserSchema } from './models/user/user.schema';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AwsS3Service } from 'src/aws-s3/aws-s3.service';
+import { FastifyMulterModule } from '@nest-lab/fastify-multer';
 
 @Module({
   imports: [
@@ -20,8 +22,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
       inject: [ConfigService],
     }),
+    FastifyMulterModule
   ],
   controllers: [UsersController],
-  providers: [UsersService]
+  providers: [UsersService, AwsS3Service]
 })
 export class UsersModule { }

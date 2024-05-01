@@ -1,5 +1,5 @@
-import { Body, Controller, Get, HttpStatus, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpStatus, Patch, Post, Query, Req, Res, UnsupportedMediaTypeException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateUserDto } from './entities/create-user.dto';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { UsersService } from './users.service';
@@ -7,11 +7,12 @@ import { LoginUserDto } from './entities/login-user.dto';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from './auth/auth.guard';
 import { EditUserProfileDto } from './entities/edit-user-profile.dto';
-
+import { AwsS3Service } from 'src/aws-s3/aws-s3.service';
+import { FileInterceptor, File } from '@nest-lab/fastify-multer';
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
-  constructor(private userService: UsersService, private jwtService: JwtService) { }
+  constructor(private userService: UsersService, private jwtService: JwtService, private readonly awsS3Service: AwsS3Service) { }
 
   @ApiOperation({ summary: 'Create user' })
   @Post('create-user')
@@ -157,5 +158,51 @@ export class UsersController {
     }
   }
 
+  // Upload file image file to aws s3 bucket and get the image url
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data') // Specify that this endpoint consumes a file
+  @UseInterceptors(FileInterceptor("file"))// Use the file interceptor
+  @ApiBody({
+    required: true,
+    schema: {
+      type: "object",
+      properties: {
+        file: {
+          type: "string",
+          format: "binary",
+        }
+      }
+    }
+  })
+  @UseGuards(AuthGuard)
+  @Patch('upload-image')
+  async uploadImage(@UploadedFile() file: File, @Res() reply: FastifyReply) {
+    try {
+      // Validate file type
+      const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/tiff', 'image/webp'];
+      if (!allowedImageTypes.includes(file.mimetype)) {
+        throw new UnsupportedMediaTypeException('Only image files (JPEG, PNG, GIF, BMP, TIFF, WEBP) are allowed');
+      }
 
+      const imageUrl = await this.awsS3Service.uploadImageToS3(file.buffer, file.originalname);
+      reply
+        .status(HttpStatus.OK)
+        .header('Content-Type', 'application/json')
+        .send({
+          'status': 'success',
+          'results': imageUrl,
+          'message': "Image uploaded succesfully !!"
+        })
+
+    } catch (error) {
+      console.log("error================>", error)
+      reply
+        .status(error.status ? error.status : HttpStatus.BAD_REQUEST)
+        .send({
+          'status': 'error',
+          'results': error.results ? error.results : undefined,
+          'message': error.message ? error.message : 'Something Went Wrong !!'
+        });
+    }
+  }
 }
