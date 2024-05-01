@@ -97,4 +97,33 @@ export class QuestionsController {
         });
     }
   }
+
+  // Bulk upload questions with category API with Authguard with Bearer Authorization
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk Upload Question Category' })
+  @UseGuards(AuthGuard)
+  @Post('bulk-upload-question-category')
+  async bulkUploadQuestionCategory(@Body() mapQuestionCategoryDto: MapQuestionCategoryDto, @Req() request: FastifyRequest, @Res() reply: FastifyReply) {
+    try {
+      const mappingDeleteData = await this.questionsService.deleteMappingQuestionCategory(mapQuestionCategoryDto)
+
+      reply
+        .status(HttpStatus.OK)
+        .header('Content-Type', 'application/json')
+        .send({
+          'status': 'success',
+          'results': mappingDeleteData,
+          'message': "Question and Category mapping deleted succesfully !!"
+        })
+    } catch (error) {
+      console.log("error================>", error)
+      reply
+        .status(error.status ? error.status : HttpStatus.BAD_REQUEST)
+        .send({
+          'status': 'error',
+          'results': error.results ? error.results : undefined,
+          'message': error.message ? error.message : 'Something Went Wrong !!'
+        });
+    }
+  }
 }

@@ -14,6 +14,10 @@ export class QuestionsService {
   ) { }
   async createQuestion(question: CreateQuestionDto): Promise<any> {
     try {
+      // Check if any question already exists with the name
+      const existsQuestion = await this.questionModel.findOne({ "name": question.name })
+      if (existsQuestion) return Promise.reject({ 'message': "A question already exists with this name", "results": existsQuestion })
+
       // Create the question in the question collection
       const response = (await this.questionModel.create(question)).toObject();
 
