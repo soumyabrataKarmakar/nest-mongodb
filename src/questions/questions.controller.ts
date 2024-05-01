@@ -1,4 +1,4 @@
-import { Body, Controller, HttpStatus, Post, Req, Res, UnsupportedMediaTypeException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, HttpStatus, Post, Query, Req, Res, UnsupportedMediaTypeException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { QuestionsService } from './questions.service';
 import { AuthGuard } from 'src/users/auth/auth.guard';
@@ -7,6 +7,7 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { MapQuestionCategoryDto } from './entities/map-question-category.dto';
 import { FileInterceptor, File } from '@nest-lab/fastify-multer';
 import * as path from 'path';
+import { GetQuestionDto } from './entities/get-question.dto';
 @ApiTags('Questions')
 @Controller('questions')
 export class QuestionsController {
@@ -40,6 +41,38 @@ export class QuestionsController {
         });
     }
   }
+
+
+  // Get questions API with Authguard with Bearer Authorization
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get All Questions. Please remove all query parameters to fetch all questions' })
+  @UseGuards(AuthGuard)
+  @Get('get-all-questions')
+  async getCategories(@Query() getQuestionDto: GetQuestionDto, @Req() request: FastifyRequest, @Res() reply: FastifyReply) {
+    try {
+      const questions = await this.questionsService.getQuestions(getQuestionDto)
+
+      reply
+        .status(HttpStatus.OK)
+        .header('Content-Type', 'application/json')
+        .send({
+          'status': 'success',
+          'results': questions,
+          'count': questions.length,
+          'message': "Questions fetched succesfully !!"
+        })
+    } catch (error) {
+      console.log("error================>", error)
+      reply
+        .status(error.status ? error.status : HttpStatus.BAD_REQUEST)
+        .send({
+          'status': 'error',
+          'results': error.results ? error.results : undefined,
+          'message': error.message ? error.message : 'Something Went Wrong !!'
+        });
+    }
+  }
+
 
   // Map questions with category API with Authguard with Bearer Authorization
   @ApiBearerAuth()

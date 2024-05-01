@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { CreateQuestionDto } from './entities/create-question.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, PipelineStage } from 'mongoose';
 import { IQuestion } from './models/questions/questions.interface';
 import { IQuestionCategoryMap } from './models/question-category-map/question-category-map.interface';
 import { MapQuestionCategoryDto } from './entities/map-question-category.dto';
 import { Readable } from 'stream';
 import { CategoriesService } from 'src/categories/categories.service';
+import { GetQuestionDto } from './entities/get-question.dto';
 
 const Papa = require('papaparse');
 const async = require('async');
@@ -33,6 +34,37 @@ export class QuestionsService {
         const mappingResponse = await this.questionCategoryMapModel.insertMany(mappingDataset)
         // console.log("mappingResponse=====================>", mappingResponse)
       }
+      return Promise.resolve(response)
+    } catch (error) {
+      return Promise.reject({ 'message': error })
+    }
+  }
+
+  async getQuestions(getQuestionDto: GetQuestionDto): Promise<any> {
+    try {
+      const skip = getQuestionDto.skip ? Number(getQuestionDto.skip) : 0;
+      const limit = getQuestionDto.limit ? Number(getQuestionDto.limit) : undefined;
+      const name = getQuestionDto.name ? getQuestionDto.name : undefined;
+      const sortby = getQuestionDto.sortby ? getQuestionDto.sortby : undefined;
+      const sortorder = getQuestionDto.sortorder ? (getQuestionDto.sortorder.trim().toLowerCase() == 'desc' ? -1 : 1) : 1;
+
+      // Default aggregation
+      const aggregation: PipelineStage[] = []
+
+      // Add name stage in the aggregation if name value is valid and search through the collection with regular expression search with case insensitivity
+      if (name) aggregation.push({ '$match': { 'name': { '$regex': name, '$options': 'i' } } })
+
+      // Add sort stage in the aggregation
+      if (sortby) aggregation.push({ '$sort': { [sortby]: sortorder } })
+
+      // Add skip stage in the aggregation with valid value or 0 skip value
+      aggregation.push({ '$skip': skip })
+
+      // Add limit stage in the aggregation if limit value is valid
+      if (limit) aggregation.push({ '$limit': limit })
+
+      console.log("aggregation====================>", JSON.stringify(aggregation))
+      const response = await this.questionModel.aggregate(aggregation)
       return Promise.resolve(response)
     } catch (error) {
       return Promise.reject({ 'message': error })
