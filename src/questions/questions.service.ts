@@ -5,12 +5,18 @@ import { Model } from 'mongoose';
 import { IQuestion } from './models/questions/questions.interface';
 import { IQuestionCategoryMap } from './models/question-category-map/question-category-map.interface';
 import { MapQuestionCategoryDto } from './entities/map-question-category.dto';
+import { Readable } from 'stream';
+import { CategoriesService } from 'src/categories/categories.service';
+
+const Papa = require('papaparse');
+const async = require('async');
 
 @Injectable()
 export class QuestionsService {
   constructor(
     @InjectModel('questions') private questionModel: Model<IQuestion>,
-    @InjectModel('question_category_map') private questionCategoryMapModel: Model<IQuestionCategoryMap>
+    @InjectModel('question_category_map') private questionCategoryMapModel: Model<IQuestionCategoryMap>,
+    private categoriesService: CategoriesService
   ) { }
   async createQuestion(question: CreateQuestionDto): Promise<any> {
     try {
@@ -25,7 +31,7 @@ export class QuestionsService {
       if (Array.isArray(question.category_ids) && question.category_ids.length > 0) {
         const mappingDataset = question.category_ids.map((category_id: string) => ({ 'question_id': response._id, 'category_id': category_id }))
         const mappingResponse = await this.questionCategoryMapModel.insertMany(mappingDataset)
-        console.log("mappingResponse=====================>", mappingResponse)
+        // console.log("mappingResponse=====================>", mappingResponse)
       }
       return Promise.resolve(response)
     } catch (error) {
@@ -58,4 +64,82 @@ export class QuestionsService {
       return Promise.reject({ 'message': error })
     }
   }
+
+
+  async parseCsv(buffer: Buffer): Promise<any> {
+    return new Promise(async (resolve, reject) => {
+      // Convert the buffer to a stream
+      const stream = new Readable({
+        read() {
+          this.push(buffer);
+          this.push(null);
+        },
+      });
+      // Finally parse the data from the stream
+      Papa.parse(stream, {
+        header: true,
+        dynamicTyping: true,
+        complete: (results: any) => {
+          resolve(results.data);
+        },
+        error: (error: any) => {
+          reject(error);
+        },
+      });
+    })
+  }
+
+  async analyzeCsvData(csvData: Array<object>): Promise<any> {
+    try {
+      console.log('csvData==================+>', csvData)
+      const analyzedDataForUpload = csvData.map((csv: object) => {
+        const finalDataset: any = {
+          'main_data': csv,
+          'uploadable': false
+        }
+        if (csv['Question']) {
+          finalDataset['question'] = csv['Question']
+          finalDataset['categories'] = csv['Categories'] ? csv['Categories'].split(',').map((val: string) => val.replaceAll(' ', '')).filter((val: string) => val.length > 3) : [];
+          finalDataset['uploadable'] = true
+        }
+        return finalDataset
+      })
+      return Promise.resolve(analyzedDataForUpload)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  }
+
+  async uploadBulkData(bulkData: Array<object>): Promise<any> {
+    try {
+      const finalResponse: Array<object> = []
+      for (let i = 0; i < bulkData.length; i++) {
+        const eachData: any = bulkData[i]
+        // Create the categories first
+        const category_ids = await async.parallel(eachData['categories'].map((category: string) => async () => {
+          try {
+            const categoryCreateResponse = await this.categoriesService.createCategory({ name: category })
+            return categoryCreateResponse._id;
+          } catch (error) {
+            console.log("error======================>", error, category)
+            return error?.results?._id ? error.results._id : null
+          }
+        }))
+        console.log('category_ids====================+++>', category_ids)
+        let questionData: any;
+        try {
+          // Create the question and mappings
+          questionData = await this.createQuestion({ 'name': eachData.question, 'category_ids': category_ids.filter((val: any) => val != null) })
+        } catch (error) {
+          questionData = error.results
+        }
+        finalResponse.push({ question: questionData, category_ids: category_ids })
+
+      }
+      return Promise.resolve(finalResponse)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  }
+
 }

@@ -6,10 +6,13 @@ import { QuestionSchema } from './models/questions/questions.schema';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { QuestionCategoryMapSchema } from './models/question-category-map/question-category-map.schema';
+import { CategoriesService } from 'src/categories/categories.service';
+import { CategorySchema } from 'src/categories/models/categories/categories.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
+      { name: 'categories', schema: CategorySchema },
       { name: 'questions', schema: QuestionSchema },
       { name: 'question_category_map', schema: QuestionCategoryMapSchema },
     ]),
@@ -24,6 +27,6 @@ import { QuestionCategoryMapSchema } from './models/question-category-map/questi
     }),
   ],
   controllers: [QuestionsController],
-  providers: [QuestionsService]
+  providers: [QuestionsService, CategoriesService]
 })
 export class QuestionsModule { }

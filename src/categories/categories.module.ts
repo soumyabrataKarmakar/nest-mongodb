@@ -24,6 +24,7 @@ import { QuestionCategoryMapSchema } from 'src/questions/models/question-categor
     }),
   ],
   controllers: [CategoriesController],
-  providers: [CategoriesService]
+  providers: [CategoriesService],
+  exports: [CategoriesService]
 })
 export class CategoriesModule { }

@@ -1,11 +1,12 @@
-import { Body, Controller, HttpStatus, Post, Req, Res, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, HttpStatus, Post, Req, Res, UnsupportedMediaTypeException, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { QuestionsService } from './questions.service';
 import { AuthGuard } from 'src/users/auth/auth.guard';
 import { CreateQuestionDto } from './entities/create-question.dto';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { MapQuestionCategoryDto } from './entities/map-question-category.dto';
-
+import { FileInterceptor, File } from '@nest-lab/fastify-multer';
+import * as path from 'path';
 @ApiTags('Questions')
 @Controller('questions')
 export class QuestionsController {
@@ -99,20 +100,52 @@ export class QuestionsController {
   }
 
   // Bulk upload questions with category API with Authguard with Bearer Authorization
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Bulk Upload Question Category' })
-  @UseGuards(AuthGuard)
-  @Post('bulk-upload-question-category')
-  async bulkUploadQuestionCategory(@Body() mapQuestionCategoryDto: MapQuestionCategoryDto, @Req() request: FastifyRequest, @Res() reply: FastifyReply) {
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data') // Specify that this endpoint consumes a file
+  @UseInterceptors(FileInterceptor("file"))// Use the file interceptor
+  @ApiBody({
+    required: true,
+    schema: {
+      type: "object",
+      properties: {
+        file: {
+          type: "string",
+          format: "binary",
+        }
+      }
+    }
+  })
+  // @UseGuards(AuthGuard)
+  @Post('bulk-upload-question-category-csv')
+  async bulkUploadQuestionCategory(@UploadedFile() file: File, @Req() request: FastifyRequest, @Res() reply: FastifyReply) {
     try {
-      const mappingDeleteData = await this.questionsService.deleteMappingQuestionCategory(mapQuestionCategoryDto)
+      // Validate file type
+      const allowedExtensions = ['.csv'];
+      const fileExtension = path.extname(file.originalname).toLowerCase();
+
+      if (!allowedExtensions.includes(fileExtension)) {
+        throw new UnsupportedMediaTypeException('Only CSV files are allowed');
+      }
+
+      // Parse CSV from buffer
+      const parsedCsv = await this.questionsService.parseCsv(file.buffer)
+      console.log("parsedCsv====================>", parsedCsv)
+
+      // Read and analysis the csv file and return array of questions
+      const questionSet = await this.questionsService.analyzeCsvData(parsedCsv)
+      console.log("questionSet====================>", questionSet)
+
+      // Upload the CSV data into database and create the mappings
+      const response = await this.questionsService.uploadBulkData(questionSet.filter((val: any) => val.uploadable == true))
 
       reply
         .status(HttpStatus.OK)
         .header('Content-Type', 'application/json')
         .send({
           'status': 'success',
-          'results': mappingDeleteData,
+          'uploaded_data': response,
+          'not_uploadable_data': questionSet.filter((val: any) => val.uploadable == false),
           'message': "Question and Category mapping deleted succesfully !!"
         })
     } catch (error) {
