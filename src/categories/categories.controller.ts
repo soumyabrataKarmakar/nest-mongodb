@@ -5,6 +5,7 @@ import { AuthGuard } from 'src/users/auth/auth.guard';
 import { FastifyReply, FastifyRequest } from 'fastify';
 import { CreateCategoryDto } from './entities/create-category.dto';
 import { GetCategoryDto } from './entities/get-category.dto';
+import { GetCategoryWiseQuestionDto } from './entities/get-category-wise-questions.dto';
 
 @ApiTags('Categories')
 @Controller('categories')
@@ -57,6 +58,36 @@ export class CategoriesController {
           'results': categories,
           'count': categories.length,
           'message': "Category fetched succesfully !!"
+        })
+    } catch (error) {
+      console.log("error================>", error)
+      reply
+        .status(error.status ? error.status : HttpStatus.BAD_REQUEST)
+        .send({
+          'status': 'error',
+          'results': error.results ? error.results : undefined,
+          'message': error.message ? error.message : 'Something Went Wrong !!'
+        });
+    }
+  }
+
+  // Get category wise Question API with Authguard with Bearer Authorization
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get Category wise Question' })
+  @UseGuards(AuthGuard)
+  @Get('get-category-wise-question')
+  async getCategoryWiseQuestions(@Query() getCategoryWiseQuestionDto: GetCategoryWiseQuestionDto, @Req() request: FastifyRequest, @Res() reply: FastifyReply) {
+    try {
+      const categories = await this.categoriesService.getCategoryWiseQuestions(getCategoryWiseQuestionDto)
+
+      reply
+        .status(HttpStatus.OK)
+        .header('Content-Type', 'application/json')
+        .send({
+          'status': 'success',
+          'results': categories,
+          'count': categories.length,
+          'message': "Category wise questions fetched succesfully !!"
         })
     } catch (error) {
       console.log("error================>", error)

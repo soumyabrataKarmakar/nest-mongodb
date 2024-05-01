@@ -5,11 +5,13 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { CategorySchema } from './models/categories/categories.schema';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { QuestionCategoryMapSchema } from 'src/questions/models/question-category-map/question-category-map.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: 'categories', schema: CategorySchema },
+      { name: 'question_category_map', schema: QuestionCategoryMapSchema },
     ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
