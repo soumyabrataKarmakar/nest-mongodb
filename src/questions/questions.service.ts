@@ -27,8 +27,6 @@ export class QuestionsService {
         const mappingResponse = await this.questionCategoryMapModel.insertMany(mappingDataset)
         console.log("mappingResponse=====================>", mappingResponse)
       }
-
-
       return Promise.resolve(response)
     } catch (error) {
       return Promise.reject({ 'message': error })
