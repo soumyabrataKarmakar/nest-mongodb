@@ -6,8 +6,6 @@ import { FastifyReply, FastifyRequest } from 'fastify';
 import { CreateCategoryDto } from './entities/create-category.dto';
 import { GetCategoryDto } from './entities/get-category.dto';
 
-const async = require('async')
-
 @ApiTags('Categories')
 @Controller('categories')
 export class CategoriesController {
