@@ -7,7 +7,6 @@ export class CreateQuestionDto {
   @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: ["6631f52b80919dc5ce519aeb", "6631f59780919dc5ce519aed"] })
-  @IsArray()
+  @ApiProperty({ example: ["6631f52b80919dc5ce519aeb", "6631f59780919dc5ce519aed"], required: false })
   category_ids: string;
 }
