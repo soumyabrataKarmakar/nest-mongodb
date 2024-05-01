@@ -4,6 +4,7 @@ import mongoose, { Model, PipelineStage } from 'mongoose';
 import { IUser } from './models/user/user.interface';
 import * as bcrypt from 'bcrypt';
 import { CreateUserDto } from './entities/create-user.dto';
+import * as moment from 'moment';
 
 @Injectable()
 export class UsersService {
@@ -62,6 +63,20 @@ export class UsersService {
       const foundUserData = await this.userModel.aggregate(aggregation)
       if (foundUserData.length == 0) return Promise.reject({ 'status': 404, "message": "User not found" })
       return Promise.resolve(foundUserData[0])
+    } catch (error) {
+      return Promise.reject({ 'message': error })
+    }
+  }
+
+  async editUserProfile(id: string, profileData: object): Promise<any> {
+    try {
+      const response = await this.userModel.findOneAndUpdate(
+        { '_id': new mongoose.Types.ObjectId(id) },
+        { ...profileData, updatedon_datetime: moment().valueOf() },
+        { projection: { 'password': 0 }, new: true }
+      )
+      if (!response) return Promise.reject({ 'status': 404, "message": "User not found" })
+      return Promise.resolve(response)
     } catch (error) {
       return Promise.reject({ 'message': error })
     }

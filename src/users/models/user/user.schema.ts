@@ -18,7 +18,7 @@ export class User {
   @Prop({})
   profile_image_url: string;
 
-  @Prop({ default: () => moment().valueOf() })
+  @Prop({ default: () => moment().valueOf(), immutable: true })
   createdon_datetime: number;
 
   @Prop({ default: () => moment().valueOf() })

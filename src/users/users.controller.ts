@@ -6,6 +6,7 @@ import { UsersService } from './users.service';
 import { LoginUserDto } from './entities/login-user.dto';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from './auth/auth.guard';
+import { EditUserProfileDto } from './entities/edit-user-profile.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -93,7 +94,6 @@ export class UsersController {
   @Get('profile')
   async getProfile(@Req() request: FastifyRequest, @Res() reply: FastifyReply) {
     try {
-      console.log('request=================>', request['user'])
       const profileData = await this.userService.getProfileData(request['user']['_id'])
 
       reply
@@ -115,4 +115,47 @@ export class UsersController {
         });
     }
   }
+
+  // Edit Profile details API with Authguard with Bearer Authorization
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Edit Profile' })
+  @UseGuards(AuthGuard)
+  @Post('edit-profile')
+  async editProfile(@Body() editUserProfileDto: EditUserProfileDto, @Req() request: FastifyRequest, @Res() reply: FastifyReply) {
+    try {
+      console.log('editUserProfileDto=================>', editUserProfileDto)
+      // Check if user tring to update email
+      if (editUserProfileDto['email']) throw { "status": 401, "message": "Email can't be updated !!" }
+
+      // Hash the password if password is in the payload
+      if (editUserProfileDto.password) {
+        const hashedPassword = await this.userService.hashPassword(editUserProfileDto.password);
+        editUserProfileDto.password = hashedPassword
+      }
+
+      // Update the profile details in the database
+      const updateResponse = await this.userService.editUserProfile(request['user']['_id'], editUserProfileDto)
+
+
+      reply
+        .status(HttpStatus.OK)
+        .header('Content-Type', 'application/json')
+        .send({
+          'status': 'success',
+          'results': updateResponse,
+          'message': "Profile data updated succesfully !!"
+        })
+    } catch (error) {
+      console.log("error================>", error)
+      reply
+        .status(error.status ? error.status : HttpStatus.BAD_REQUEST)
+        .send({
+          'status': 'error',
+          'results': error.results ? error.results : undefined,
+          'message': error.message ? error.message : 'Something Went Wrong !!'
+        });
+    }
+  }
+
+
 }
